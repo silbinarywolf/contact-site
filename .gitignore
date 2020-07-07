@@ -1,0 +1,8 @@
+# Ignore everything in root (to ignore binary for Linux / Mac)
+*
+# Unignore directories
+!/**/
+# Unignore files with extensions
+!*.*
+# Ignore Windows build
+/*.exe

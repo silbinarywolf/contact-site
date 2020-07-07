@@ -1,0 +1,51 @@
+version: "2"
+
+services:
+  app:
+    # NOTE(Jake): 2018-09-14
+    #
+    # From Tom:
+    # Build is simply a '.' So you could just run a docker build -t silbinarywolf/appimg . and use that name in your app image.
+    # That way youd have some more granular understanding on build.
+    #
+    # Name the image so it updates from the previous versions
+    #
+    build: .
+    # NOTE(Jake): 2018-06-21
+    #
+    # If the "game" app stops/dies/crashes, restart!
+    #
+    restart: on-failure
+    ports:
+      # NOTE(Jake): 2018-09-20
+      # Changed this because it's SSL outgoing anyway + port 8080 is in use
+      # for some reason now.
+       - "443:8080"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+    command: /go/src/github.com/silbinarywolf/game/server
+  #
+  # NOTE(Jake): 2018-06-17
+  #
+  # Generate SSL certificate.
+  #
+  # All that I should need to do is run certbot manually every 90 days to renew
+  # the SSL cert.
+  #
+  # - https://hub.docker.com/r/certbot/certbot/
+  # - https://realguess.net/2016/10/09/getting-let-s-encrypt-ssl-certificate-with-docker/
+  #
+  certbot:
+    image: certbot/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # NOTE(Jake): 2018-06-17
+      #
+      # Store our cert / private key in:
+      # - /etc/letsencrypt/live/abgame.silbinarywolf.com.au
+      #
+      - /etc/letsencrypt:/etc/letsencrypt
+      #- ./assets_server/log/letsencrypt:/var/log/letsencrypt
+    entrypoint: certbot certonly --standalone --agree-tos --email doogie1012@gmail.com --preferred-challenges http -d abgame.silbinarywolf.com.au

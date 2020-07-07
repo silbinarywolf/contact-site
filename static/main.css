@@ -1,0 +1,19 @@
+html,
+body {
+	font-size: 16px;
+	padding: 0;
+	margin: 0;
+	background-color: #fff;
+	font-family: -apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+}
+
+body {
+	color: #fff;
+	background-color: #222;
+}
+
+.container {
+	width: calc(640px + 1.5rem);
+	max-width: 100%;
+	padding: 0 1.5rem;
+}
