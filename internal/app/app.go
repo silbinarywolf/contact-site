@@ -1,14 +1,21 @@
 package app
 
 import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"text/template"
 	"time"
 
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
+	"database/sql"
+
+	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 const port = ":8080"
@@ -20,6 +27,14 @@ const port = ":8080"
 // our "static" files via Apache/Nginx, we can make the rules for public/privately exposed
 // folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
 var templates = template.Must(template.ParseFiles(".assets/index.html"))
+
+var (
+	flagInit bool
+)
+
+func init() {
+	flag.BoolVar(&flagInit, "init", false, "if init flag is used, the database, tables and initial data will be setup")
+}
 
 type TemplateData struct {
 }
@@ -33,20 +48,90 @@ func handleHomePage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type Config struct {
+	Database struct {
+		Server   string `json:"server,omitempty"`
+		Port     int    `json:"port,omitempty"`
+		User     string `json:"user,omitempty"`
+		Password string `json:"password,omitempty"`
+	}
+}
+
+type PhoneNumber struct {
+	ID     int
+	Number string
+}
+
 type Contact struct {
+	ID           int
+	FullName     string
+	Email        string
+	PhoneNumbers []PhoneNumber
+}
+
+func loadConfig() Config {
+	var config Config
+	file, err := os.Open("config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	dat, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Printf("Config load error: %s\n", err)
+		os.Exit(1)
+	}
+	if err := json.Unmarshal(dat, &config); err != nil {
+		log.Printf("Config parse error: %s\n", err)
+		os.Exit(1)
+	}
+	return config
+}
+
+func setup() {
+	_, err = db.Query("CREATE DATABASE " + dbName + ";")
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P04" {
+			// Do nothing if "duplicate_database" error
+			// it's already been created
+		} else {
+			panic(err)
+		}
+	}
+	_, err = db.Query(`
+		DROP TABLE PhoneNumber;
+		DROP TABLE Contact;
+	`)
+	_, err = db.Query(`
+		CREATE TABLE PhoneNumber(
+			ID        INT PRIMARY KEY  NOT NULL,
+			ContactID INT              NOT NULL,
+			Number    VARCHAR(16)      NOT NULL
+		);
+		CREATE TABLE Contact(
+			ID        INT PRIMARY KEY  NOT NULL,
+			FullName  VARCHAR(255)     NOT NULL,
+			Email     VARCHAR(255)     NOT NULL
+		);
+	`)
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P07" {
+			// Do nothing if "duplicate_table" error, we're already initialized
+		} else {
+			panic(err)
+		}
+	}
 }
 
 func Start() {
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASSWORD")
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
+	// Load config file
+	config := loadConfig()
 
-	//dbHost = "192.168.99.100"
-	//dbHost = "db"
-	//dbUser = "admin"
-	//dbPass = "password"
-	//dbPort = "5432"
+	dbUser := config.Database.User
+	dbPass := config.Database.Password
+	dbHost := config.Database.Server
+	dbPort := strconv.Itoa(config.Database.Port)
+	dbName := "ContactName"
 
 	shouldEarlyExit := false
 	if dbUser == "" {
@@ -57,6 +142,10 @@ func Start() {
 		log.Printf("DB_PASSWORD environment variable cannot be empty.")
 		shouldEarlyExit = true
 	}
+	if dbHost == "" {
+		log.Printf("DB_HOST environment variable cannot be empty.")
+		shouldEarlyExit = true
+	}
 	if dbPort == "" {
 		log.Printf("DB_PORT environment variable cannot be empty.")
 		shouldEarlyExit = true
@@ -64,19 +153,20 @@ func Start() {
 	if shouldEarlyExit {
 		os.Exit(1)
 	}
-	// log.Printf("DEBUG: User: %v, Pass: %v, Port: %v\n", dbUser, dbPass, dbPort)
-	db := pg.Connect(&pg.Options{
-		Addr:     dbHost + ":" + dbPort,
-		User:     dbUser,
-		Password: dbPass,
-		OnConnect: func(cn *pg.Conn) error {
-			log.Printf("Successfully connected to SQL server")
-			return nil
-		},
-	})
+	db, err := sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s sslmode=disable",
+		dbHost,
+		dbPort,
+		dbUser,
+		dbPass,
+	))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// Try and connect to the database
 	for i := 0; i < 5; i++ {
-		var n int
-		_, err := db.QueryOne(pg.Scan(&n), "SELECT 1")
+		err := db.Ping()
 		if err == nil {
 			break
 		}
@@ -88,18 +178,22 @@ func Start() {
 		time.Sleep(2 * time.Second)
 	}
 	log.Println("Database connection successful")
-	models := []interface{}{
-		(*Contact)(nil),
+
+	if flagInit {
+		setup()
+		os.Exit(0)
 	}
-	for _, model := range models {
-		err := db.CreateTable(model, &orm.CreateTableOptions{
-			Temp: true, // temp table
-		})
-		if err != nil {
+
+	// Init
+	_, err = db.Query("SELECT DATABASE " + dbName + ";")
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P04" {
+			// Do nothing if "duplicate_database" error
+			// it's already been created
+		} else {
 			panic(err)
 		}
 	}
-	defer db.Close()
 
 	http.HandleFunc("/", handleHomePage)
 	http.HandleFunc("/static/main.css", func(w http.ResponseWriter, r *http.Request) {

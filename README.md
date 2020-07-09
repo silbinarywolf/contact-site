@@ -1,6 +1,13 @@
 # Contact Site
 
 
+# Local Development
+
+1) Start the SQL server only
+```
+docker-compose up -d db && docker-compose logs -f
+```
+
 # Testing
 
 ```
