@@ -1,23 +1,32 @@
 package db
 
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+	"time"
+)
+
 var (
-	db 
+	db *sql.DB
 )
 
 type Settings struct {
-	Host string
-	Port string
-	User string
-	Password string
+	Host         string
+	Port         int
+	User         string
+	Password     string
+	DatabaseName string
 }
 
-func Initialize() {
+func Connect(settings Settings) {
 	var err error
-	db, err = sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s sslmode=disable",
-		dbHost,
-		dbPort,
-		dbUser,
-		dbPass,
+	db, err = sql.Open("postgres", fmt.Sprintf("host=%s port=%d user=%s password=%s sslmode=disable",
+		settings.Host,
+		settings.Port,
+		settings.User,
+		settings.Password,
 	))
 	if err != nil {
 		panic(err)
@@ -36,9 +45,22 @@ func Initialize() {
 		}
 		time.Sleep(2 * time.Second)
 	}
+
+	// Select database
+	/*if _, err := db.Query("SELECT DATABASE " + settings.DatabaseName + ";"); err != nil {
+		log.Printf("Unable to select database: %s\n", err)
+		os.Exit(1)
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P04" {
+			// Do nothing if "duplicate_database" error
+			// it's already been created
+		} else {
+			panic(err)
+		}
+	}*/
+	//log.Println("Database connection successful")
 }
 
-func Get() {
+func Get() *sql.DB {
 	return db
 }
 

@@ -1,24 +1,21 @@
 package app
 
 import (
-	"encoding/json"
 	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"text/template"
-	"time"
-
-	"database/sql"
 
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
+	"github.com/silbinarywolf/contact-site/internal/config"
+	"github.com/silbinarywolf/contact-site/internal/db"
 )
 
 const port = ":8080"
+
+const databaseName = "ContactSite"
 
 // templates are parsed once at boot-up so they only need to be parsed once and to
 // catch any parsing problems as soon as possible.
@@ -29,11 +26,13 @@ const port = ":8080"
 var templates = template.Must(template.ParseFiles(".assets/index.html"))
 
 var (
-	flagInit bool
+	flagInit    bool
+	flagDestroy bool
 )
 
 func init() {
 	flag.BoolVar(&flagInit, "init", false, "if init flag is used, the database, tables and initial data will be setup")
+	flag.BoolVar(&flagDestroy, "destroy", false, "if destroy flag is used, the database will be destroyed.")
 }
 
 type TemplateData struct {
@@ -48,151 +47,146 @@ func handleHomePage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Config struct {
-	Database struct {
-		Server   string `json:"server,omitempty"`
-		Port     int    `json:"port,omitempty"`
-		User     string `json:"user,omitempty"`
-		Password string `json:"password,omitempty"`
-	}
-}
-
 type PhoneNumber struct {
-	ID     int
-	Number string
+	ID        int64
+	ContactID int64
+	Number    string
 }
 
 type Contact struct {
-	ID           int
+	ID           int64
 	FullName     string
 	Email        string
 	PhoneNumbers []PhoneNumber
 }
 
-func loadConfig() Config {
-	var config Config
-	file, err := os.Open("config.json")
-	if err != nil {
-		log.Fatal(err)
+func mustDestroy() {
+	db := db.Get()
+	dropTables := []string{
+		`DROP TABLE Contact`,
+		`DROP TABLE PhoneNumber`,
 	}
-	defer file.Close()
-	dat, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Printf("Config load error: %s\n", err)
-		os.Exit(1)
+	for _, dropTableQuery := range dropTables {
+		if _, err := db.Query(dropTableQuery); err != nil {
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P01" {
+				// Do nothing if "undefined_table" error.
+				// Just means table doesn't exist so if it never existed, thats fine.
+			} else {
+				panic(err)
+			}
+		}
 	}
-	if err := json.Unmarshal(dat, &config); err != nil {
-		log.Printf("Config parse error: %s\n", err)
-		os.Exit(1)
-	}
-	return config
 }
 
-func setup() {
-	_, err = db.Query("CREATE DATABASE " + dbName + ";")
+func mustSetupOrUpdate() {
+	db := db.Get()
+
+	// Create database
+	/*_, err := db.Query("CREATE DATABASE " + databaseName + ";")
 	if err != nil {
+		return err
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P04" {
 			// Do nothing if "duplicate_database" error
-			// it's already been created
+			// Database has already been created.
 		} else {
 			panic(err)
 		}
-	}
-	_, err = db.Query(`
-		DROP TABLE PhoneNumber;
-		DROP TABLE Contact;
-	`)
-	_, err = db.Query(`
-		CREATE TABLE PhoneNumber(
-			ID        INT PRIMARY KEY  NOT NULL,
+	}*/
+
+	// Create tables
+	createTables := []string{
+		`CREATE TABLE PhoneNumber(
+			ID        SERIAL PRIMARY KEY NOT NULL,
 			ContactID INT              NOT NULL,
 			Number    VARCHAR(16)      NOT NULL
-		);
-		CREATE TABLE Contact(
-			ID        INT PRIMARY KEY  NOT NULL,
+		)`,
+		`CREATE TABLE Contact(
+			ID        SERIAL PRIMARY KEY NOT NULL,
 			FullName  VARCHAR(255)     NOT NULL,
 			Email     VARCHAR(255)     NOT NULL
-		);
-	`)
-	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P07" {
-			// Do nothing if "duplicate_table" error, we're already initialized
-		} else {
+		)`,
+	}
+	for _, createTableQuery := range createTables {
+		if _, err := db.Query(createTableQuery); err != nil {
 			panic(err)
+			/*if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P07" {
+				// Do nothing if "duplicate_table" error.
+				// Just means table was already created.
+			} else {
+				panic(err)
+			}*/
 		}
 	}
+	// Fill with data
+	records := []Contact{
+		{
+			FullName: "Alex Bell",
+			Email:    "Fredrik Idestam",
+			PhoneNumbers: []PhoneNumber{
+				{Number: "03 8578 6688"},
+				{Number: "1800728069"},
+			},
+		},
+		{
+			FullName: "Fredrik Idestam",
+			PhoneNumbers: []PhoneNumber{
+				{Number: "+6139888998"},
+			},
+		},
+		{
+			FullName: "Radia Perlman",
+			Email:    "rperl001@mit.edu",
+			PhoneNumbers: []PhoneNumber{
+				{Number: "+6139888998"},
+			},
+		},
+	}
+
+	for _, record := range records {
+		err := db.QueryRow(`INSERT INTO Contact (FullName, Email) VALUES ($1, $2) RETURNING ID`, record.FullName, record.Email).Scan(&record.ID)
+		if err != nil {
+			panic(err)
+		}
+		if record.ID == 0 {
+			panic("Expected insertion to return an id not equal to 0")
+		}
+		for _, childRecord := range record.PhoneNumbers {
+			err := db.QueryRow(`INSERT INTO PhoneNumber (ContactID, Number) VALUES($1, $2) RETURNING ID`, record.ID, childRecord.Number).Scan(&childRecord.ID)
+			if err != nil {
+				panic(err)
+			}
+			if childRecord.ID == 0 {
+				panic("Expected insertion to return an id not equal to 0")
+			}
+		}
+	}
+
+	//db.Query("INSERT INTO Contact (ID, FullName, Email) VALUES (?, ?, ?)")
 }
 
 func Start() {
-	// Load config file
-	config := loadConfig()
+	flag.Parse()
 
-	dbUser := config.Database.User
-	dbPass := config.Database.Password
-	dbHost := config.Database.Server
-	dbPort := strconv.Itoa(config.Database.Port)
-	dbName := "ContactName"
+	// Load config
+	config.MustLoad()
+	config := config.Get()
 
-	shouldEarlyExit := false
-	if dbUser == "" {
-		log.Printf("DB_USER environment variable cannot be empty.")
-		shouldEarlyExit = true
-	}
-	if dbPass == "" {
-		log.Printf("DB_PASSWORD environment variable cannot be empty.")
-		shouldEarlyExit = true
-	}
-	if dbHost == "" {
-		log.Printf("DB_HOST environment variable cannot be empty.")
-		shouldEarlyExit = true
-	}
-	if dbPort == "" {
-		log.Printf("DB_PORT environment variable cannot be empty.")
-		shouldEarlyExit = true
-	}
-	if shouldEarlyExit {
-		os.Exit(1)
-	}
-	db, err := sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s sslmode=disable",
-		dbHost,
-		dbPort,
-		dbUser,
-		dbPass,
-	))
-	if err != nil {
-		panic(err)
-	}
+	// Connect the database
+	db.Connect(db.Settings{
+		Host:     config.Database.Host,
+		Port:     config.Database.Port,
+		User:     config.Database.User,
+		Password: config.Database.Password,
+	})
 	defer db.Close()
 
-	// Try and connect to the database
-	for i := 0; i < 5; i++ {
-		err := db.Ping()
-		if err == nil {
-			break
-		}
-		log.Printf("Database connection attempt #%d: %v\n", i, err)
-		if i == 4 {
-			log.Println("Unable to connect to database. Stopping app.")
-			os.Exit(1)
-		}
-		time.Sleep(2 * time.Second)
-	}
-	log.Println("Database connection successful")
-
-	if flagInit {
-		setup()
+	if flagDestroy {
+		mustDestroy()
 		os.Exit(0)
 	}
-
-	// Init
-	_, err = db.Query("SELECT DATABASE " + dbName + ";")
-	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P04" {
-			// Do nothing if "duplicate_database" error
-			// it's already been created
-		} else {
-			panic(err)
-		}
+	if flagInit {
+		mustSetupOrUpdate()
+		os.Exit(0)
 	}
 
 	http.HandleFunc("/", handleHomePage)
