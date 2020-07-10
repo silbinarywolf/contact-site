@@ -1,0 +1,33 @@
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="/static/main.css"/>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+	</head>
+	<body>
+		<div class="container">
+			<h1>Contacts</h1>
+			<table>
+				<thead>
+					<th>Full Name</th>
+					<th>Email</th>
+					<th>Phone Numbers</th>
+				</thead>
+				<tbody>
+					{{range $r := .Contacts}}
+						<tr>
+							<td>{{$r.FullName}}</td>
+							<td>{{$r.Email}}</td>
+							<td>
+								{{range $index, $r := .PhoneNumbers}}
+									{{if ne $index 0}},{{end}}
+									{{$r.Number}}
+								{{end}}
+							</td>
+						</tr>
+					{{end}}
+				</tbody>
+			</table>
+		</div>
+	</body>
+</html>

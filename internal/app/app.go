@@ -20,10 +20,10 @@ const databaseName = "ContactSite"
 // templates are parsed once at boot-up so they only need to be parsed once and to
 // catch any parsing problems as soon as possible.
 //
-// We store the files in ".assets" with a prefixed "." so that if we decide to serve
+// We store the files in ".templates" with a prefixed "." so that if we decide to serve
 // our "static" files via Apache/Nginx, we can make the rules for public/privately exposed
 // folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
-var templates = template.Must(template.ParseFiles(".assets/index.html"))
+var templates = template.Must(template.ParseFiles(".templates/index.html"))
 
 var (
 	flagInit    bool
@@ -36,12 +36,42 @@ func init() {
 }
 
 type TemplateData struct {
+	Contacts []Contact
 }
 
 func handleHomePage(w http.ResponseWriter, r *http.Request) {
-	var p TemplateData
-	err := templates.ExecuteTemplate(w, "index.html", p)
+	db := db.Get()
+	// I considered using an INNER JOIN like this:
+	// - INNER JOIN PhoneNumber ON PhoneNumber.ContactID = Contact.ID
+	// But ultimately just opted to do a query per records has_many for simplicity
+	// and easier extensibility. (ie. adding more relationships, etc)
+	rows, err := db.Query(`SELECT ID, FullName, Email FROM Contact`)
 	if err != nil {
+		panic(err)
+		//http.Error(w, err.Error(), http.StatusInternalServerError)
+		//return
+	}
+	var contacts []Contact
+	for rows.Next() {
+		var record Contact
+		err := rows.Scan(&record.ID, &record.FullName, &record.Email)
+		if err != nil {
+			panic(err)
+		}
+		childRows, err := db.Query(`SELECT ID, ContactID, Number FROM PhoneNumber`)
+		for childRows.Next() {
+			var childRecord PhoneNumber
+			err := childRows.Scan(&childRecord.ID, &childRecord.ContactID, &childRecord.Number)
+			if err != nil {
+				panic(err)
+			}
+			record.PhoneNumbers = append(record.PhoneNumbers, childRecord)
+		}
+		contacts = append(contacts, record)
+	}
+	var p TemplateData
+	p.Contacts = contacts
+	if err := templates.ExecuteTemplate(w, "index.html", p); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -1,20 +1,7 @@
 # Contact Site
 
 
-# Local Development
-
-1) Start the SQL server only
-```
-docker-compose up -d db && docker-compose logs -f
-```
-
-# Testing
-
-```
-GOOS=linux go build -o server && docker-compose --verbose build --no-cache && docker-compose stop && docker-compose up -d && docker-compose logs -f
-```
-
-# Setup Developer Environment on Windows with Docker Toolbox
+# Setup Docker
 
 1) Create a virtual machine
 ```
@@ -26,12 +13,37 @@ docker-machine create default
 eval $(docker-machine env default)
 ```
 
-3) Build Go binary
+If you get the following error and you're using Docker Toolbox, you may need to start up the virtual machine again:
+```
+Error checking TLS connection: Host is not running
+```
+
+# Local Development
+
+1) Start the SQL server only
+```
+docker-compose up -d db && docker-compose logs -f
+```
+
+2) Build and run your binary
+```
+go build && ./contact-site
+```
+
+# Testing
+
+```
+GOOS=linux go build -o server && docker-compose --verbose build --no-cache && docker-compose stop && docker-compose up -d && docker-compose logs -f
+```
+
+# Run Environment
+
+1) Build Go binary
 ```
 GOOS=linux go build -o server
 ```
 
-3) Build and Run environment
+2) Build and Run environment
 ```
 docker-compose --verbose build --no-cache app && docker-compose stop && docker-compose up -d && docker-compose logs -f
 ```

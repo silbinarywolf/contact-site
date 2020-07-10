@@ -13,7 +13,29 @@ body {
 }
 
 .container {
-	width: calc(640px + 1.5rem);
+	width: 1280px;
 	max-width: 100%;
+	margin: 0 auto;
 	padding: 0 1.5rem;
+	padding-top: 0.5rem;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+td,
+th {
+	text-align: left;
+	border: 1px solid white;
+	padding: 8px;
+}
+
+th {
+	padding: 8px;
+}
+
+h1 {
+	margin-bottom: 1rem;
 }
