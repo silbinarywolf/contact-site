@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
+	"strings"
 	"text/template"
 
 	"github.com/lib/pq"
@@ -25,6 +27,10 @@ const databaseName = "ContactSite"
 // folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
 var templates = template.Must(template.ParseFiles(".templates/index.html"))
 
+// validate email address
+// sourced from: https://golangnews.org/2020/06/validating-an-email-address/
+var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
 var (
 	flagInit    bool
 	flagDestroy bool
@@ -37,6 +43,19 @@ func init() {
 
 type TemplateData struct {
 	Contacts []Contact
+}
+
+type PhoneNumber struct {
+	ID        int64
+	ContactID int64
+	Number    string
+}
+
+type Contact struct {
+	ID           int64
+	FullName     string
+	Email        string
+	PhoneNumbers []PhoneNumber
 }
 
 func handleHomePage(w http.ResponseWriter, r *http.Request) {
@@ -77,19 +96,89 @@ func handleHomePage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type PhoneNumber struct {
-	ID        int64
-	ContactID int64
-	Number    string
+func handlePostContact(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	fullName := r.FormValue("FullName")
+	if len(fullName) >= 255 {
+		// TODO(Jae): 2020-07-10
+		// Consider storing max length of DB fields or DB field type as tag data
+		// so that when creating the table / validating, we don't need to change this logic in two places.
+		http.Error(w, "Invalid Full Name given. Must be shorter than 255 characters.", http.StatusBadRequest)
+		return
+	}
+	email := r.FormValue("Email")
+	if len(email) < 3 ||
+		len(email) >= 255 ||
+		!emailRegex.MatchString(email) {
+		http.Error(w, "Invalid Email given. You must provide a valid email address.", http.StatusBadRequest)
+		return
+	}
+	phoneNumbersDat := r.FormValue("PhoneNumbers")
+	if len(phoneNumbersDat) >= 4096 {
+		// Arbitrarily limited the max amount of data to 4096
+		http.Error(w, "Invalid Phone Numbers given, too many phone numbers given.", http.StatusBadRequest)
+		return
+	}
+	phoneNumbers := strings.Split(phoneNumbersDat, "\n")
+	if len(phoneNumbers) >= 32 {
+		// Arbitrarily limited the max amount of data to 32
+		http.Error(w, "Invalid Phone Numbers given, too many phone numbers given.", http.StatusBadRequest)
+		return
+	}
+	var record Contact
+	record.FullName = fullName
+	record.Email = email
+	for _, phoneNumber := range phoneNumbers {
+		record.PhoneNumbers = append(record.PhoneNumbers, PhoneNumber{
+			Number: phoneNumber,
+		})
+	}
+	// TODO: Insert record
 }
 
-type Contact struct {
-	ID           int64
-	FullName     string
-	Email        string
-	PhoneNumbers []PhoneNumber
+func Start() {
+	flag.Parse()
+
+	// Load config
+	config.MustLoad()
+	config := config.Get()
+
+	// Connect the database
+	db.Connect(db.Settings{
+		Host:     config.Database.Host,
+		Port:     config.Database.Port,
+		User:     config.Database.User,
+		Password: config.Database.Password,
+	})
+	defer db.Close()
+
+	if flagDestroy {
+		mustDestroy()
+		os.Exit(0)
+	}
+	if flagInit {
+		mustSetupOrUpdate()
+		os.Exit(0)
+	}
+
+	http.HandleFunc("/", handleHomePage)
+	http.HandleFunc("/postContact", handlePostContact)
+	http.HandleFunc("/static/main.css", func(w http.ResponseWriter, r *http.Request) {
+		// Manually serving CSS rather than using http.FileServer because Golang's in-built
+		// detection methods can't really determine if the file is CSS or not.
+		// Chrome complains if you try to load a CSS file with "text/plain". (has errors in Chrome DevTools)
+		// See "DetectContentType" in the standard library, in file: net\http\sniff.go
+		w.Header().Add("Content-Type", "text/css; charset=utf-8")
+		http.ServeFile(w, r, r.URL.Path[1:])
+	})
+	log.Printf("Starting server on " + port + "...")
+	http.ListenAndServe(port, nil)
 }
 
+// mustDestroy will drop all the tables in the current database.
+// In a real production situation, I'd probably make this hidden behind tag like "dev" or "debug"
+// as it only exists for developer convenience.
 func mustDestroy() {
 	db := db.Get()
 	dropTables := []string{
@@ -108,10 +197,12 @@ func mustDestroy() {
 	}
 }
 
+// mustSetupOrUpdate will execute if the "flagInit" global variable is true
 func mustSetupOrUpdate() {
 	db := db.Get()
 
 	// Create database
+	// (This ended up not being necessary for postgres)
 	/*_, err := db.Query("CREATE DATABASE " + databaseName + ";")
 	if err != nil {
 		return err
@@ -192,42 +283,4 @@ func mustSetupOrUpdate() {
 	}
 
 	//db.Query("INSERT INTO Contact (ID, FullName, Email) VALUES (?, ?, ?)")
-}
-
-func Start() {
-	flag.Parse()
-
-	// Load config
-	config.MustLoad()
-	config := config.Get()
-
-	// Connect the database
-	db.Connect(db.Settings{
-		Host:     config.Database.Host,
-		Port:     config.Database.Port,
-		User:     config.Database.User,
-		Password: config.Database.Password,
-	})
-	defer db.Close()
-
-	if flagDestroy {
-		mustDestroy()
-		os.Exit(0)
-	}
-	if flagInit {
-		mustSetupOrUpdate()
-		os.Exit(0)
-	}
-
-	http.HandleFunc("/", handleHomePage)
-	http.HandleFunc("/static/main.css", func(w http.ResponseWriter, r *http.Request) {
-		// Manually serving CSS rather than using http.FileServer because Golang's in-built
-		// detection methods can't really determine if the file is CSS or not.
-		// Chrome complains if you try to load a CSS file with "text/plain". (has errors in Chrome DevTools)
-		// See "DetectContentType" in the standard library, in file: net\http\sniff.go
-		w.Header().Add("Content-Type", "text/css; charset=utf-8")
-		http.ServeFile(w, r, r.URL.Path[1:])
-	})
-	log.Printf("Starting server on " + port + "...\n")
-	http.ListenAndServe(port, nil)
 }

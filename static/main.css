@@ -1,3 +1,7 @@
+* {
+	box-sizing: border-box;
+}
+
 html,
 body {
 	font-size: 16px;
@@ -12,7 +16,7 @@ body {
 	background-color: #222;
 }
 
-.container {
+.Container {
 	width: 1280px;
 	max-width: 100%;
 	margin: 0 auto;
@@ -36,6 +40,44 @@ th {
 	padding: 8px;
 }
 
-h1 {
-	margin-bottom: 1rem;
+h1,
+h2 {
+	margin: 1rem 0;
+}
+
+button,
+label,
+input {
+	font-size: inherit;
+}
+
+button {
+	background: #fff;
+	border: 1px solid black;
+	border-radius: 4px;
+	padding: 0.5rem 1rem;
+}
+
+label {
+	display: block;
+	margin-bottom: 0.5rem;
+}
+
+input[type="text"],
+input[type="email"],
+textarea {
+	width: 100%;
+	background: #fff;
+	border: 1px solid #fff;
+	border-radius: 4px;
+	padding: 0.25rem 0.5rem;
+}
+
+textarea {
+	min-height: 80px;
+}
+
+.FieldHolder {
+	max-width: 320px;
+	margin-bottom: 0.5rem;
 }
