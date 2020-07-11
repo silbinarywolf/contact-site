@@ -70,4 +70,5 @@ func Connect(settings Settings) {
 
 func Close() {
 	db.Close()
+	db = nil
 }

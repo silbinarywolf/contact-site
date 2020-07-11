@@ -75,9 +75,9 @@ func InsertNew(record *Contact) (rErr error) {
 			// So then I discovered that Google had libraries dedicated to parsing this but only C/Java/JavaScript implementations:
 			// - https://github.com/google/libphonenumber
 			//
-			// So finally, after more googling I lucked upon this Golang implementation based on Google's Java implementation. 
+			// So finally, after more googling I lucked upon this Golang implementation based on Google's Java implementation.
 			// It has reasonable tests and instructions on how to update the binary data. Promising! So I'm rolling with it.
-			// - https://github.com/nyaruka/phonenumbers 
+			// - https://github.com/nyaruka/phonenumbers
 			parsedNumber, err := phonenumbers.Parse(phoneNumber, "AU")
 			if err != nil {
 				return ErrInvalidPhoneNumber
@@ -98,7 +98,7 @@ func InsertNew(record *Contact) (rErr error) {
 		return err
 	}
 	hasCommitted := false
-	defer func(){
+	defer func() {
 		if hasCommitted {
 			return
 		}

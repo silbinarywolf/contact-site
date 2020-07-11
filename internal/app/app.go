@@ -23,10 +23,7 @@ const port = ":8080"
 // We store the files in ".templates" with a prefixed "." so that if we decide to serve
 // our "static" files via Apache/Nginx, we can make the rules for public/privately exposed
 // folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
-var templates = template.Must(template.ParseFiles(
-	".templates/index.html",
-	".templates/postContact.html",
-))
+var templates *template.Template
 
 var (
 	flagInit    bool
@@ -95,7 +92,11 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 }
 
 func Start() {
-	flag.Parse()
+	// Initialize templates
+	templates = template.Must(template.ParseFiles(
+		".templates/index.html",
+		".templates/postContact.html",
+	))
 
 	// Load config
 	config.MustLoad()
@@ -130,7 +131,12 @@ func Start() {
 		http.ServeFile(w, r, r.URL.Path[1:])
 	})
 	log.Printf("Starting server on " + port + "...")
-	http.ListenAndServe(port, nil)
+	//go func() {
+	err := http.ListenAndServe(port, nil)
+	if err != nil {
+		panic(err)
+	}
+	//}()
 }
 
 // mustDestroy will drop all the tables in the current database.

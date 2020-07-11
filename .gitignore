@@ -10,3 +10,5 @@
 /*.exe
 # Ignore config
 /config.json
+# Ignore code coverage files
+*.out

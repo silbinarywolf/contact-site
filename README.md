@@ -55,8 +55,31 @@ docker-compose --verbose build --no-cache app && docker-compose stop && docker-c
 
 # Run Tests
 
+* Run all tests
 ```
 go test ./...
+```
+
+* Run unit tests
+```
+go test ./internal/...
+```
+
+* Run integration tests
+```
+go test ./test
+```
+
+# Run Tests With Code Coverage
+
+* Generate code coverage
+```
+go test ./test -cover -coverpkg=./... -coverprofile=coverage.out
+```
+
+* Open coverage file in the browser
+```
+go tool cover -html=coverage.out
 ```
 
 ## Dependencies Considered
