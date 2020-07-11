@@ -4,6 +4,8 @@
 !/**/
 # Unignore files with extensions
 !*.*
+# Unignore Dockerfile
+!Dockerfile
 # Ignore Windows build
 /*.exe
 # Ignore config

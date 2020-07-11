@@ -13,7 +13,6 @@ import (
 	"github.com/silbinarywolf/contact-site/internal/config"
 	"github.com/silbinarywolf/contact-site/internal/contact"
 	"github.com/silbinarywolf/contact-site/internal/db"
-	"github.com/silbinarywolf/contact-site/internal/validate"
 )
 
 const port = ":8080"
@@ -26,7 +25,10 @@ const databaseName = "ContactSite"
 // We store the files in ".templates" with a prefixed "." so that if we decide to serve
 // our "static" files via Apache/Nginx, we can make the rules for public/privately exposed
 // folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
-var templates = template.Must(template.ParseFiles(".templates/index.html"))
+var templates = template.Must(template.ParseFiles(
+	".templates/index.html",
+	".templates/postContact.html",
+))
 
 var (
 	flagInit    bool
@@ -90,10 +92,6 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := r.FormValue("Email")
-	if validate.IsValidEmail(email) {
-		http.Error(w, "Invalid Email given. You must provide a valid email address.", http.StatusBadRequest)
-		return
-	}
 	phoneNumbersDat := r.FormValue("PhoneNumbers")
 	if len(phoneNumbersDat) >= 4096 {
 		// Arbitrarily limited the max amount of data to 4096
@@ -103,7 +101,7 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 	phoneNumbers := strings.Split(phoneNumbersDat, "\n")
 
 	// Create record from request
-	var record contact.Contact
+	record := &contact.Contact{}
 	record.FullName = fullName
 	record.Email = email
 	for _, phoneNumber := range phoneNumbers {
@@ -112,14 +110,17 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err := contact.InsertNew(record); err != nil {
-		switch err {
-		case contact.ErrInvalidEmail:
-			http.Error(w, "Invalid Email given. You must provide a valid email address.", http.StatusBadRequest)
-		case contact.ErrInvalidPhoneNumber:
-			http.Error(w, "Invalid Phone Numbers given.", http.StatusBadRequest)
+		switch err := err.(type) {
+		case *contact.ValidationError:
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
+			log.Print(err)
 			http.Error(w, "An unexpected error occurred inserting the record", http.StatusInternalServerError)
 		}
+		return
+	}
+	if err := templates.ExecuteTemplate(w, "postContact.html", nil); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	return
@@ -227,7 +228,7 @@ func mustSetupOrUpdate() {
 		}
 	}
 	// Fill with data
-	records := []contact.Contact{
+	records := []*contact.Contact{
 		{
 			FullName: "Alex Bell",
 			Email:    "Fredrik Idestam",
