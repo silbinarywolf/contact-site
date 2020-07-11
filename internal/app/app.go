@@ -17,8 +17,6 @@ import (
 
 const port = ":8080"
 
-const databaseName = "ContactSite"
-
 // templates are parsed once at boot-up so they only need to be parsed once and to
 // catch any parsing problems as soon as possible.
 //
@@ -45,35 +43,8 @@ type TemplateData struct {
 }
 
 func handleHomePage(w http.ResponseWriter, r *http.Request) {
-	db := db.Get()
-	// I considered using an INNER JOIN like this:
-	// - INNER JOIN PhoneNumber ON PhoneNumber.ContactID = Contact.ID
-	// But ultimately just opted to do a query per records has_many for simplicity
-	// and easier extensibility. (ie. adding more relationships, etc)
-	rows, err := db.Query(`SELECT ID, FullName, Email FROM Contact`)
-	if err != nil {
-		panic(err)
-	}
-	var contacts []contact.Contact
-	for rows.Next() {
-		var record contact.Contact
-		err := rows.Scan(&record.ID, &record.FullName, &record.Email)
-		if err != nil {
-			panic(err)
-		}
-		childRows, err := db.Query(`SELECT ID, ContactID, Number FROM PhoneNumber`)
-		for childRows.Next() {
-			var childRecord contact.PhoneNumber
-			err := childRows.Scan(&childRecord.ID, &childRecord.ContactID, &childRecord.Number)
-			if err != nil {
-				panic(err)
-			}
-			record.PhoneNumbers = append(record.PhoneNumbers, childRecord)
-		}
-		contacts = append(contacts, record)
-	}
 	var templateData TemplateData
-	templateData.Contacts = contacts
+	templateData.Contacts = contact.GetAll()
 	if err := templates.ExecuteTemplate(w, "index.html", templateData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -86,6 +57,7 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 	fullName := r.FormValue("FullName")
 	email := r.FormValue("Email")
 	phoneNumbersDat := r.FormValue("PhoneNumbers")
+	phoneNumbersDat = strings.TrimSpace(phoneNumbersDat)
 	if len(phoneNumbersDat) >= 4096 {
 		// Arbitrarily limited the max amount of data to 4096.
 		http.Error(w, "Invalid Phone Numbers given, too many phone numbers given.", http.StatusBadRequest)
@@ -97,8 +69,8 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 	record := &contact.Contact{}
 	record.FullName = fullName
 	record.Email = email
-	// We know the ahead-of-time, the len of phone numbers, so lets just allocate
-	// precisely that amount.
+	// We know the size of phone numbers provided.
+	// So lets allocate precisely that amount.
 	record.PhoneNumbers = make([]contact.PhoneNumber, len(phoneNumbers))
 	for i, phoneNumber := range phoneNumbers {
 		record.PhoneNumbers[i] = contact.PhoneNumber{
@@ -127,9 +99,9 @@ func Start() {
 
 	// Load config
 	config.MustLoad()
-	config := config.Get()
 
-	// Connect the database
+	// Connect to the database
+	config := config.Get()
 	db.Connect(db.Settings{
 		Host:     config.Database.Host,
 		Port:     config.Database.Port,
@@ -143,7 +115,7 @@ func Start() {
 		os.Exit(0)
 	}
 	if flagInit {
-		mustSetupOrUpdate()
+		mustSetup()
 		os.Exit(0)
 	}
 
@@ -168,9 +140,7 @@ func mustDestroy() {
 	contact.MustDestroy()
 }
 
-// mustSetupOrUpdate will execute if the "flagInit" global variable is true
-func mustSetupOrUpdate() {
+// mustSetup will execute if the "flagInit" global variable is true
+func mustSetup() {
 	contact.MustInitialize()
-
-	// Success!
 }
