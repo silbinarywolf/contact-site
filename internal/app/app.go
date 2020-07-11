@@ -2,14 +2,12 @@ package app
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"text/template"
 
-	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/silbinarywolf/contact-site/internal/config"
 	"github.com/silbinarywolf/contact-site/internal/contact"
@@ -167,93 +165,12 @@ func Start() {
 // In a real production situation, I'd probably make this hidden behind tag like "dev" or "debug"
 // as it only exists for developer convenience.
 func mustDestroy() {
-	db := db.Get()
-	dropTables := []string{
-		`DROP TABLE Contact`,
-		`DROP TABLE PhoneNumber`,
-	}
-	for _, dropTableQuery := range dropTables {
-		if _, err := db.Query(dropTableQuery); err != nil {
-			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P01" {
-				// Do nothing if "undefined_table" error.
-				// Just means table doesn't exist so if it never existed, thats fine.
-			} else {
-				panic(err)
-			}
-		}
-	}
+	contact.MustDestroy()
 }
 
 // mustSetupOrUpdate will execute if the "flagInit" global variable is true
 func mustSetupOrUpdate() {
-	db := db.Get()
-
-	// Create database
-	// (This ended up not being necessary for postgres)
-	/*_, err := db.Query("CREATE DATABASE " + databaseName + ";")
-	if err != nil {
-		return err
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P04" {
-			// Do nothing if "duplicate_database" error
-			// Database has already been created.
-		} else {
-			panic(err)
-		}
-	}*/
-
-	// Create tables
-	createTables := []string{
-		`CREATE TABLE PhoneNumber(
-			ID        SERIAL PRIMARY KEY NOT NULL,
-			ContactID INT              NOT NULL,
-			Number    VARCHAR(16)      NOT NULL
-		)`,
-		`CREATE TABLE Contact(
-			ID        SERIAL PRIMARY KEY NOT NULL,
-			FullName  VARCHAR(255)     NOT NULL,
-			Email     VARCHAR(255)     NOT NULL
-		)`,
-	}
-	for _, createTableQuery := range createTables {
-		if _, err := db.Query(createTableQuery); err != nil {
-			panic(err)
-			/*if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P07" {
-				// Do nothing if "duplicate_table" error.
-				// Just means table was already created.
-			} else {
-				panic(err)
-			}*/
-		}
-	}
-	// Fill with data
-	records := []*contact.Contact{
-		{
-			FullName: "Alex Bell",
-			PhoneNumbers: []contact.PhoneNumber{
-				{Number: "03 8578 6688"},
-				{Number: "1800728069"},
-			},
-		},
-		{
-			FullName: "Fredrik Idestam",
-			PhoneNumbers: []contact.PhoneNumber{
-				{Number: "+6139888998"},
-			},
-		},
-		{
-			FullName: "Radia Perlman",
-			Email:    "rperl001@mit.edu",
-			PhoneNumbers: []contact.PhoneNumber{
-				{Number: "+6139888998"},
-			},
-		},
-	}
-
-	for i, record := range records {
-		if err := contact.InsertNew(record); err != nil {
-			panic(fmt.Sprintf("mustSetupOrUpdate: Failed to insert record %d: %s", i, err))
-		}
-	}
+	contact.MustInitialize()
 
 	// Success!
 }

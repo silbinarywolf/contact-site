@@ -2,7 +2,9 @@ package contact
 
 import (
 	"errors"
+	"fmt"
 
+	"github.com/lib/pq"
 	"github.com/silbinarywolf/contact-site/internal/db"
 	"github.com/silbinarywolf/contact-site/internal/validate"
 )
@@ -86,4 +88,79 @@ func InsertNew(record *Contact) error {
 		}
 	}
 	return nil
+}
+
+// MustInitialize will setup the necessary tables and add some mock data into the
+// database.
+//
+// This function will panic if an error occurs.
+func MustInitialize() {
+	db := db.Get()
+
+	// Create tables
+	createTables := []string{
+		`CREATE TABLE PhoneNumber(
+			ID        SERIAL PRIMARY KEY NOT NULL,
+			ContactID INT              NOT NULL,
+			Number    VARCHAR(16)      NOT NULL
+		)`,
+		`CREATE TABLE Contact(
+			ID        SERIAL PRIMARY KEY NOT NULL,
+			FullName  VARCHAR(255)     NOT NULL,
+			Email     VARCHAR(255)     NOT NULL
+		)`,
+	}
+	for _, createTableQuery := range createTables {
+		if _, err := db.Query(createTableQuery); err != nil {
+			panic(err)
+		}
+	}
+	// Fill with data
+	records := []*Contact{
+		{
+			FullName: "Alex Bell",
+			PhoneNumbers: []PhoneNumber{
+				{Number: "03 8578 6688"},
+				{Number: "1800728069"},
+			},
+		},
+		{
+			FullName: "Fredrik Idestam",
+			PhoneNumbers: []PhoneNumber{
+				{Number: "+6139888998"},
+			},
+		},
+		{
+			FullName: "Radia Perlman",
+			Email:    "rperl001@mit.edu",
+			PhoneNumbers: []PhoneNumber{
+				{Number: "+6139888998"},
+			},
+		},
+	}
+
+	for i, record := range records {
+		if err := InsertNew(record); err != nil {
+			panic(fmt.Sprintf("Failed to insert record %d: %s", i, err))
+		}
+	}
+}
+
+func MustDestroy() {
+	db := db.Get()
+
+	dropTables := []string{
+		`DROP TABLE Contact`,
+		`DROP TABLE PhoneNumber`,
+	}
+	for _, dropTableQuery := range dropTables {
+		if _, err := db.Query(dropTableQuery); err != nil {
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P01" {
+				// Do nothing if "undefined_table" error.
+				// Just means table doesn't exist so if it never existed, thats fine.
+			} else {
+				panic(err)
+			}
+		}
+	}
 }

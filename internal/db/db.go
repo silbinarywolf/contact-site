@@ -28,9 +28,14 @@ type Settings struct {
 	// DatabaseName string
 }
 
-// Get will get an active database connection
+// Get will get an active database connection.
+//
+// The general pattern in this codebase is to just use this to get the current database
+// connection rather than passing around a *sql.DB pointer everywhere. I'm betting that
+// I'm not going to need multiple database connections/drivers in this project.
 //
 // Safe for concurrent use.
+// (As per Golang docs, *sql.DB is safe for concurrent use)
 func Get() *sql.DB {
 	return db
 }
