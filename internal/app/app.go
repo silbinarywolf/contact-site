@@ -5,14 +5,15 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/silbinarywolf/contact-site/internal/config"
+	"github.com/silbinarywolf/contact-site/internal/contact"
 	"github.com/silbinarywolf/contact-site/internal/db"
+	"github.com/silbinarywolf/contact-site/internal/validate"
 )
 
 const port = ":8080"
@@ -27,10 +28,6 @@ const databaseName = "ContactSite"
 // folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
 var templates = template.Must(template.ParseFiles(".templates/index.html"))
 
-// validate email address
-// sourced from: https://golangnews.org/2020/06/validating-an-email-address/
-var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-
 var (
 	flagInit    bool
 	flagDestroy bool
@@ -42,20 +39,7 @@ func init() {
 }
 
 type TemplateData struct {
-	Contacts []Contact
-}
-
-type PhoneNumber struct {
-	ID        int64
-	ContactID int64
-	Number    string
-}
-
-type Contact struct {
-	ID           int64
-	FullName     string
-	Email        string
-	PhoneNumbers []PhoneNumber
+	Contacts []contact.Contact
 }
 
 func handleHomePage(w http.ResponseWriter, r *http.Request) {
@@ -67,19 +51,17 @@ func handleHomePage(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(`SELECT ID, FullName, Email FROM Contact`)
 	if err != nil {
 		panic(err)
-		//http.Error(w, err.Error(), http.StatusInternalServerError)
-		//return
 	}
-	var contacts []Contact
+	var contacts []contact.Contact
 	for rows.Next() {
-		var record Contact
+		var record contact.Contact
 		err := rows.Scan(&record.ID, &record.FullName, &record.Email)
 		if err != nil {
 			panic(err)
 		}
 		childRows, err := db.Query(`SELECT ID, ContactID, Number FROM PhoneNumber`)
 		for childRows.Next() {
-			var childRecord PhoneNumber
+			var childRecord contact.PhoneNumber
 			err := childRows.Scan(&childRecord.ID, &childRecord.ContactID, &childRecord.Number)
 			if err != nil {
 				panic(err)
@@ -88,9 +70,9 @@ func handleHomePage(w http.ResponseWriter, r *http.Request) {
 		}
 		contacts = append(contacts, record)
 	}
-	var p TemplateData
-	p.Contacts = contacts
-	if err := templates.ExecuteTemplate(w, "index.html", p); err != nil {
+	var templateData TemplateData
+	templateData.Contacts = contacts
+	if err := templates.ExecuteTemplate(w, "index.html", templateData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -108,9 +90,7 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := r.FormValue("Email")
-	if len(email) < 3 ||
-		len(email) >= 255 ||
-		!emailRegex.MatchString(email) {
+	if validate.IsValidEmail(email) {
 		http.Error(w, "Invalid Email given. You must provide a valid email address.", http.StatusBadRequest)
 		return
 	}
@@ -121,20 +101,28 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	phoneNumbers := strings.Split(phoneNumbersDat, "\n")
-	if len(phoneNumbers) >= 32 {
-		// Arbitrarily limited the max amount of data to 32
-		http.Error(w, "Invalid Phone Numbers given, too many phone numbers given.", http.StatusBadRequest)
-		return
-	}
-	var record Contact
+
+	// Create record from request
+	var record contact.Contact
 	record.FullName = fullName
 	record.Email = email
 	for _, phoneNumber := range phoneNumbers {
-		record.PhoneNumbers = append(record.PhoneNumbers, PhoneNumber{
+		record.PhoneNumbers = append(record.PhoneNumbers, contact.PhoneNumber{
 			Number: phoneNumber,
 		})
 	}
-	// TODO: Insert record
+	if err := contact.InsertNew(record); err != nil {
+		switch err {
+		case contact.ErrInvalidEmail:
+			http.Error(w, "Invalid Email given. You must provide a valid email address.", http.StatusBadRequest)
+		case contact.ErrInvalidPhoneNumber:
+			http.Error(w, "Invalid Phone Numbers given.", http.StatusBadRequest)
+		default:
+			http.Error(w, "An unexpected error occurred inserting the record", http.StatusInternalServerError)
+		}
+		return
+	}
+	return
 }
 
 func Start() {
@@ -239,46 +227,33 @@ func mustSetupOrUpdate() {
 		}
 	}
 	// Fill with data
-	records := []Contact{
+	records := []contact.Contact{
 		{
 			FullName: "Alex Bell",
 			Email:    "Fredrik Idestam",
-			PhoneNumbers: []PhoneNumber{
+			PhoneNumbers: []contact.PhoneNumber{
 				{Number: "03 8578 6688"},
 				{Number: "1800728069"},
 			},
 		},
 		{
 			FullName: "Fredrik Idestam",
-			PhoneNumbers: []PhoneNumber{
+			PhoneNumbers: []contact.PhoneNumber{
 				{Number: "+6139888998"},
 			},
 		},
 		{
 			FullName: "Radia Perlman",
 			Email:    "rperl001@mit.edu",
-			PhoneNumbers: []PhoneNumber{
+			PhoneNumbers: []contact.PhoneNumber{
 				{Number: "+6139888998"},
 			},
 		},
 	}
 
 	for _, record := range records {
-		err := db.QueryRow(`INSERT INTO Contact (FullName, Email) VALUES ($1, $2) RETURNING ID`, record.FullName, record.Email).Scan(&record.ID)
-		if err != nil {
+		if err := contact.InsertNew(record); err != nil {
 			panic(err)
-		}
-		if record.ID == 0 {
-			panic("Expected insertion to return an id not equal to 0")
-		}
-		for _, childRecord := range record.PhoneNumbers {
-			err := db.QueryRow(`INSERT INTO PhoneNumber (ContactID, Number) VALUES($1, $2) RETURNING ID`, record.ID, childRecord.Number).Scan(&childRecord.ID)
-			if err != nil {
-				panic(err)
-			}
-			if childRecord.ID == 0 {
-				panic("Expected insertion to return an id not equal to 0")
-			}
 		}
 	}
 

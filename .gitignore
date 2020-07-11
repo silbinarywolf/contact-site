@@ -6,3 +6,5 @@
 !*.*
 # Ignore Windows build
 /*.exe
+# Ignore config
+/config.json
