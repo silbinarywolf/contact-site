@@ -2,6 +2,7 @@ package app
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/silbinarywolf/contact-site/internal/config"
 	"github.com/silbinarywolf/contact-site/internal/contact"
 	"github.com/silbinarywolf/contact-site/internal/db"
+	"github.com/silbinarywolf/contact-site/internal/validate"
 )
 
 const port = ":8080"
@@ -84,17 +86,10 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	fullName := r.FormValue("FullName")
-	if len(fullName) >= 255 {
-		// TODO(Jae): 2020-07-10
-		// Consider storing max length of DB fields or DB field type as tag data
-		// so that when creating the table / validating, we don't need to change this logic in two places.
-		http.Error(w, "Invalid Full Name given. Must be shorter than 255 characters.", http.StatusBadRequest)
-		return
-	}
 	email := r.FormValue("Email")
 	phoneNumbersDat := r.FormValue("PhoneNumbers")
 	if len(phoneNumbersDat) >= 4096 {
-		// Arbitrarily limited the max amount of data to 4096
+		// Arbitrarily limited the max amount of data to 4096.
 		http.Error(w, "Invalid Phone Numbers given, too many phone numbers given.", http.StatusBadRequest)
 		return
 	}
@@ -104,14 +99,17 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 	record := &contact.Contact{}
 	record.FullName = fullName
 	record.Email = email
-	for _, phoneNumber := range phoneNumbers {
-		record.PhoneNumbers = append(record.PhoneNumbers, contact.PhoneNumber{
+	// We know the ahead-of-time, the len of phone numbers, so lets just allocate
+	// precisely that amount.
+	record.PhoneNumbers = make([]contact.PhoneNumber, len(phoneNumbers))
+	for i, phoneNumber := range phoneNumbers {
+		record.PhoneNumbers[i] = contact.PhoneNumber{
 			Number: phoneNumber,
-		})
+		}
 	}
 	if err := contact.InsertNew(record); err != nil {
 		switch err := err.(type) {
-		case *contact.ValidationError:
+		case *validate.ValidationError:
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			log.Print(err)
@@ -231,7 +229,6 @@ func mustSetupOrUpdate() {
 	records := []*contact.Contact{
 		{
 			FullName: "Alex Bell",
-			Email:    "Fredrik Idestam",
 			PhoneNumbers: []contact.PhoneNumber{
 				{Number: "03 8578 6688"},
 				{Number: "1800728069"},
@@ -252,11 +249,11 @@ func mustSetupOrUpdate() {
 		},
 	}
 
-	for _, record := range records {
+	for i, record := range records {
 		if err := contact.InsertNew(record); err != nil {
-			panic(err)
+			panic(fmt.Sprintf("mustSetupOrUpdate: Failed to insert record %d: %s", i, err))
 		}
 	}
 
-	//db.Query("INSERT INTO Contact (ID, FullName, Email) VALUES (?, ?, ?)")
+	// Success!
 }

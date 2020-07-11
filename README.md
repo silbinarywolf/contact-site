@@ -53,6 +53,12 @@ docker-compose --verbose build --no-cache app && docker-compose stop && docker-c
 
 * Use `docker-machine ip` to get the machines IP address
 
+# Run Tests
+
+```
+go test ./...
+```
+
 ## Dependencies Considered
 
 - https://github.com/lib/pq

@@ -26,6 +26,14 @@ func Get() Config {
 	return config
 }
 
+// MustLoad will try to load the applications config.json file.
+// Panics if an error occurs.
+//
+// This could return an error and be handled that way, but I opted to not
+// put the work as of yet as there's no clear benefit in doing so. If I needed this
+// to be easier to work with in tests or something, it'd probably be worth it, in which
+// case there would be a Load function implemented, and MustLoad would just wrap it and panic
+// if error is not nil.
 func MustLoad() {
 	file, err := os.Open("config.json")
 	if err != nil {

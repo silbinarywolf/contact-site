@@ -9,9 +9,9 @@ import (
 
 var (
 	// Client-facing errors
-	ErrInvalidFullName    = newValidationMessage("Invalid Full Name provided. Name provided is too long.")
-	ErrInvalidEmail       = newValidationMessage("Invalid Email provided")
-	ErrInvalidPhoneNumber = newValidationMessage("Invalid Phone Number provided")
+	ErrInvalidFullName    = validate.NewError("Invalid Full Name provided. Name provided is too long.")
+	ErrInvalidEmail       = validate.NewError("Invalid Email provided")
+	ErrInvalidPhoneNumber = validate.NewError("Invalid Phone Number provided")
 
 	// Internal (developer) errors
 	errContactAlreadyExists     = errors.New("cannot insert Contact record that already exists")
@@ -31,25 +31,6 @@ type Contact struct {
 	PhoneNumbers []PhoneNumber
 }
 
-// ValidationError is a distinct error type that we use when we want to expose
-// error information to the frontend / end-user.
-type ValidationError struct {
-	message string
-}
-
-// assert at compile-time that this type satisfies the error interface
-var _ error = new(ValidationError)
-
-func (err *ValidationError) Error() string {
-	return err.message
-}
-
-func newValidationMessage(message string) *ValidationError {
-	return &ValidationError{
-		message: message,
-	}
-}
-
 func InsertNew(record *Contact) error {
 	db := db.Get()
 
@@ -58,6 +39,9 @@ func InsertNew(record *Contact) error {
 	// This could be in a new function, but that'd be premature as it'd only be called in one place, here.
 	// So we leverage the amazing forgotten 70's technology of block-scoping
 	// Aesthetically unappealing? Agreed. Practical and improves linear readability? Definitely.
+	//
+	// Also very easy to copy-paste to a new function when/if the time comes that I need this called
+	// in two or more seperate places.
 	{
 		if record.ID != 0 {
 			return errContactAlreadyExists
@@ -65,13 +49,19 @@ func InsertNew(record *Contact) error {
 		if len(record.FullName) >= 255 {
 			return ErrInvalidFullName
 		}
-		if !validate.IsValidEmail(record.Email) {
+		// We allow a blank email address for these records
+		// but that doesn't mean I want my email validation code to allow
+		// blank strings, so we capture that information at this level
+		if len(record.Email) != 0 &&
+			!validate.IsValidEmail(record.Email) {
 			return ErrInvalidEmail
 		}
 		for _, childRecord := range record.PhoneNumbers {
 			if childRecord.ID != 0 {
 				return errPhoneNumberAlreadyExists
 			}
+			// TODO(Jae): 2020-07-11
+			// parse reasonable phone numbers into E.164 format
 			if !validate.IsValidPhoneNumber(childRecord.Number) {
 				return ErrInvalidPhoneNumber
 			}
