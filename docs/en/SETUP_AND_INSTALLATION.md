@@ -9,7 +9,7 @@ This document contains instructions for:
 The following assumes you're running a *nix console such as Bash, Git Bash or macOS Terminal.
 If you're using Windows, I recommend Git Bash. Don't try to use the Windows Command Line or Powershell, the commands below will not work.
 
-These docs also assume you understand how to setup a remote docker machine and setup your environment so that when the following commands are executed, they'll be done against your remote web server.
+These docs also assume you understand how to setup a remote docker machine and setup your environment so that when the following commands are executed, they'll be done against your remote server.
 
 1) Create a copies of the provided example files
 

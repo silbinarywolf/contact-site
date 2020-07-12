@@ -101,12 +101,12 @@ go test ./test
 
 The following commands run tests and also give information relating to code coverage. When I last observed
 
-* Generate code coverage for integration tests
+1) Generate code coverage for integration tests
 ```
 go test ./test -cover -coverpkg=./... -coverprofile=coverage.out
 ```
 
-* Open coverage file in the browser
+2) Open coverage file in the browser
 ```
 go tool cover -html=coverage.out
 ```
