@@ -13,6 +13,9 @@ jobs:
       # in the project and things will just work.
       db:
         image: postgres
+        expose:
+          # Publishes the port to other containers but NOT to host machine
+          - "5432"
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
