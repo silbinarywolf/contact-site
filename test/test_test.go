@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 	defer app.MustClose()
 
 	// Set hostname we hit with get/post requests in our tests below
-	HostName = "http://127.0.0.1:" + strconv.Itoa(config.Get().Web.Port)
+	HostName = "http://localhost:" + strconv.Itoa(config.Get().Web.Port)
 
 	// Start application without blocking (so we can run tests)
 	go app.MustStart()
