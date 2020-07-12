@@ -55,7 +55,7 @@ func TestGetHomePage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("post error: path \"/\": %s", err)
 	}
-	dat, err := ioutil.ReadAll(resp.Body)
+	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("readAll error: %s", err)
 	}
@@ -68,7 +68,6 @@ func TestPostFormSuccess(t *testing.T) {
 	// robust way to test whether the server is running correctly or not.
 	// Slow? Probably. But if it turns out to not be a good idea, we can always change it
 	// later.
-	// This isn't exactly a great test case but proves the validation is working as expected/etc.
 	resp, err := http.PostForm(
 		HostName+"/postContact",
 		url.Values{
@@ -123,6 +122,9 @@ func TestPostFormFailure(t *testing.T) {
 		t.Errorf("unexpected response: %s", dat)
 	case http.StatusBadRequest:
 		// expected result, success!
+		// If we add more failure cases, we might want to have an error code
+		// attached to the header or something so we can detect the type of
+		// error without needing to do string matches.
 	default:
 		t.Fatalf("unhandled error: %s", err)
 	}
