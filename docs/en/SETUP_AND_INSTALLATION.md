@@ -9,22 +9,23 @@ This document contains instructions for:
 The following assumes you're running a *nix console such as Bash, Git Bash or macOS Terminal.
 If you're using Windows, I recommend Git Bash. Don't try to use the Windows Command Line or Powershell, the commands below will not work.
 
-* Create a copies of the provided example files
-- [config.example.json](/config.example.json)
-- [docker-compose.prod.example.yml](/docker-compose.prod.example.yml)
+1) Create a copies of the provided example files
+
+    - [config.example.json](/config.example.json)
+    - [docker-compose.prod.example.yml](/docker-compose.prod.example.yml)
 
 Remove the ".example" part from each file and configure them for production use.
 
 **Recommendations**
 - Change the database user and password in both `config.json` and `docker-compose.prod.yml` to not be admin/password.
 
-* The following command-line statements will:
+2) The following command-line statements will:
 
-- Build Go binary for Linux. (this binary file will be packaged into the Docker container, as defined in Dockerfile)
-- Force build of all images. Mostly used to rebuild the "app" image.
-- Stop the containers if they're running
-- Make the containers run, using our [docker-compose.prod.yml](./docker-compose.prod.yml) override file
-- We run it in detached mode so that if we close the console window, the server will keep running.
+    - Build Go binary for Linux. (this binary file will be packaged into the Docker container, as defined in Dockerfile)
+    - Force build of all images. Mostly used to rebuild the "app" image.
+    - Stop the containers if they're running
+    - Make the containers run, using our [docker-compose.prod.yml](./docker-compose.prod.yml) override file
+    - We run it in detached mode so that if we close the console window, the server will keep running.
 ```
 GOOS=linux go build -o server && 
 docker-compose --verbose build --no-cache && 

@@ -26,7 +26,7 @@ If you get the following error and you're using Docker Toolbox, you may need to 
 ```
 Error checking TLS connection: Host is not running
 ```
-![A screenshot of VirtualBox, with a virtual machine right-clicked and hovering over the "Headless Start" menu option](docs/en/images/vbox-start-virtual-machine.png)
+![A screenshot of VirtualBox, with a virtual machine right-clicked and hovering over the "Headless Start" menu option](images/vbox-start-virtual-machine.png)
 *A screenshot of VirtualBox, with a virtual machine right-clicked and hovering over the "Headless Start" menu option*
 
 2) Start the PostgresSQL server in detached mode (-d) and to just immediately show me the logs. I do things this way so that if you close the console window running, your SQL server will continue to run in the background.
@@ -40,7 +40,7 @@ docker-machine ip
 ```
 
 Whatever IP address you get back from that command, put it into your config.json file. It should look something like this:
-```
+```json
 {
 	"web": {
 		"port": 8080
