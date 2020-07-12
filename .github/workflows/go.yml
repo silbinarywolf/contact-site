@@ -1,0 +1,48 @@
+name: Go
+on: [push, pull_request]
+jobs:
+
+  linux:
+    name: Go ${{ matrix.go }} on Ubuntu
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.14']
+    services:
+      # db is the name of this host so we can use the config.example.json file
+      # in the project and things will just work.
+      db:
+        image: postgres
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Set up Go ${{ matrix.go }}
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go }}
+      id: go
+
+    - name: Get Go dependencies
+      run: |
+        go mod download
+        go get -v
+
+    - name: Build
+      run: |
+        go build -v -o server
+
+    - name: Init Data and Run Tests
+      run: |
+        cp config.example.json config.json
+        ./server --init
+        go test ./...
