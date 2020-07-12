@@ -34,14 +34,17 @@ type Settings struct {
 // connection rather than passing around a *sql.DB pointer everywhere. I'm betting that
 // I'm not going to need multiple database connections/drivers in this project.
 //
+// I have a hunch that this is a bad idea and that leveraging the "context.Context" object
+// to get the current DB object would allow for more code-reuse but right now from the code I have
+// its unclear as to what practical benefits that would give me and I'm out of time.
+//
 // Safe for concurrent use.
 // (As per Golang docs, *sql.DB is safe for concurrent use)
 func Get() *sql.DB {
 	return db
 }
 
-// Connect will connect to a postgres database
-func Connect(settings Settings) {
+func MustConnect(settings Settings) {
 	var err error
 	db, err = sql.Open("postgres", fmt.Sprintf("host=%s port=%d user=%s password=%s sslmode=disable",
 		settings.Host,
@@ -54,6 +57,10 @@ func Connect(settings Settings) {
 	}
 
 	// Test connection to the database
+	//
+	// Simply calling "Open" won't tell us if it connected successfully, at least for the Postgres
+	// driver I'm using. The reason for the retry logic is to improve support when running in a
+	// Docker environment.
 	for i := 0; i < maxDBRetries; i++ {
 		err := db.Ping()
 		if err == nil {
@@ -61,6 +68,8 @@ func Connect(settings Settings) {
 		}
 		log.Printf("Database connection attempt #%d: %v\n", i, err)
 		if i == maxDBRetries-1 {
+			// Not panicing here as its not a developer-fault, this kind of error
+			// is likely to be a user/config error and so we don't need the callstack.
 			log.Println("Unable to connect to database. Stopping app.")
 			os.Exit(1)
 		}
@@ -68,7 +77,12 @@ func Connect(settings Settings) {
 	}
 }
 
-func Close() {
-	db.Close()
-	db = nil
+func MustClose() error {
+	if db != nil {
+		if err := db.Close(); err != nil {
+			return err
+		}
+		db = nil
+	}
+	return nil
 }

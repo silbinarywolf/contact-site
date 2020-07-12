@@ -1,35 +1,15 @@
 # Contact Site
 
+A website that 
 
+![A screenshot of the main page that exists in this project](docs/en/images/screen1.png)
+*A screenshot of the website*
 
-# Setup Docker
+## Documentation
 
-1) Create a virtual machine
-```
-docker-machine create default
-```
-
-2) Setup your environment in your console to use the newly created VirtualMachine
-```
-eval $(docker-machine env default)
-```
-
-If you get the following error and you're using Docker Toolbox, you may need to start up the virtual machine again:
-```
-Error checking TLS connection: Host is not running
-```
-
-# Local Development
-
-1) Start the SQL server only
-```
-docker-compose up -d db && docker-compose logs -f
-```
-
-2) Build and run your binary
-```
-go build && ./contact-site
-```
+* [Setup and Installation](docs/en/SETUP_AND_INSTALLATION.md)
+* [Developing and Contributing](docs/en/DEVELOPING_AND_CONTRIBUTING.md)
+* [License](LICENSE.md)
 
 # Testing
 
@@ -52,35 +32,6 @@ docker-compose --verbose build --no-cache app && docker-compose stop && docker-c
 **Side Notes*
 
 * Use `docker-machine ip` to get the machines IP address
-
-# Run Tests
-
-* Run all tests
-```
-go test ./...
-```
-
-* Run unit tests
-```
-go test ./internal/...
-```
-
-* Run integration tests
-```
-go test ./test
-```
-
-# Run Tests With Code Coverage
-
-* Generate code coverage
-```
-go test ./test -cover -coverpkg=./... -coverprofile=coverage.out
-```
-
-* Open coverage file in the browser
-```
-go tool cover -html=coverage.out
-```
 
 ## Dependencies Considered
 

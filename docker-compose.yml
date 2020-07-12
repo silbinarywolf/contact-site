@@ -8,11 +8,6 @@ services:
     ports:
        - "8080:8080"
     command: /app/server
-    environment:
-      DB_USER: admin
-      DB_PASSWORD: password
-      DB_HOST: db
-      DB_PORT: "5432"
   db:
     image: postgres
     restart: always

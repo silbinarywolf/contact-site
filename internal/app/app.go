@@ -28,6 +28,9 @@ var templates *template.Template
 var (
 	flagInit    bool
 	flagDestroy bool
+
+	isInitialized bool
+	isClosed      bool
 )
 
 func init() {
@@ -91,7 +94,14 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func Start() {
+// MustInitialize will init various modules such as templates, configs and database connections.
+// This logic was seperated from MustStart so that the initialization code could be guaranteed to have
+// completed successfully
+func MustInitialize() {
+	if isInitialized {
+		panic("Cannot call MustInitialize more than once.")
+	}
+
 	// Initialize templates
 	templates = template.Must(template.ParseFiles(
 		".templates/index.html",
@@ -103,23 +113,14 @@ func Start() {
 
 	// Connect to the database
 	config := config.Get()
-	db.Connect(db.Settings{
+	db.MustConnect(db.Settings{
 		Host:     config.Database.Host,
 		Port:     config.Database.Port,
 		User:     config.Database.User,
 		Password: config.Database.Password,
 	})
-	defer db.Close()
 
-	if flagDestroy {
-		mustDestroy()
-		os.Exit(0)
-	}
-	if flagInit {
-		mustSetup()
-		os.Exit(0)
-	}
-
+	// Setup routes
 	http.HandleFunc("/", handleHomePage)
 	http.HandleFunc("/postContact", handlePostContact)
 	http.HandleFunc("/static/main.css", func(w http.ResponseWriter, r *http.Request) {
@@ -130,13 +131,37 @@ func Start() {
 		w.Header().Add("Content-Type", "text/css; charset=utf-8")
 		http.ServeFile(w, r, r.URL.Path[1:])
 	})
+
+	isInitialized = true
+}
+
+func MustStart() {
+	if !isInitialized {
+		panic("Must call Initialize before calling Start")
+	}
+	if flagDestroy {
+		mustDestroy()
+		os.Exit(0)
+	}
+	if flagInit {
+		mustSetup()
+		os.Exit(0)
+	}
+
 	log.Printf("Starting server on " + port + "...")
-	//go func() {
 	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		panic(err)
 	}
-	//}()
+}
+
+// MustClose should be called when the application closes.
+func MustClose() {
+	if isClosed {
+		panic("Cannot call MustClose more than once.")
+	}
+	db.MustClose()
+	isClosed = true
 }
 
 // mustDestroy will drop all the tables in the current database.

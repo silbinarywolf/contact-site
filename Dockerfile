@@ -2,6 +2,10 @@ FROM scratch
 
 WORKDIR /app
 
-COPY ./server ./server
-COPY ./.assets ./.assets
+# Copy files
+COPY ./config.json ./config.json
+COPY ./.templates ./.templates
 COPY ./static ./static
+
+# Copy server
+COPY ./server ./server

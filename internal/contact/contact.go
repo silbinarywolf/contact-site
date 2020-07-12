@@ -69,7 +69,7 @@ func InsertNew(record *Contact) (rErr error) {
 			// implied that we should infer Australian numbers.
 			//
 			// I initially stumbled across this parsing/formatting implementation: https://github.com/dongri/phonenumber
-			// but it didn't fill me with much confidence asE.164 is seemingly like timezones, wherein they change
+			// but it didn't fill me with much confidence as E.164 is seemingly like timezones, wherein they change
 			// requirements over time. I ideally want to buy-in to something that is maintained or easy to take over maintenance for.
 			//
 			// So then I discovered that Google had libraries dedicated to parsing this but only C/Java/JavaScript implementations:
@@ -175,13 +175,13 @@ func MustInitialize() {
 	createTables := []string{
 		`CREATE TABLE Contact(
 			ID        SERIAL PRIMARY KEY NOT NULL,
-			FullName  VARCHAR(255)     NOT NULL,
-			Email     VARCHAR(255)     NOT NULL
+			FullName  VARCHAR(255)       NOT NULL,
+			Email     VARCHAR(255)       NOT NULL
 		)`,
 		`CREATE TABLE PhoneNumber(
 			ID        SERIAL PRIMARY KEY NOT NULL,
-			ContactID INT              NOT NULL,
-			Number    VARCHAR(16)      NOT NULL,
+			ContactID INT                NOT NULL,
+			Number    VARCHAR(16)        NOT NULL,
 			CONSTRAINT FkContactID FOREIGN KEY (ContactID) REFERENCES Contact (ID)
 		)`,
 	}
