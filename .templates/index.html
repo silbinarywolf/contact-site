@@ -1,0 +1,60 @@
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="/static/main.css"/>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+	</head>
+	<body>
+		<div class="Container">
+			<h1>Contacts</h1>
+			<table>
+				<thead>
+					<th>Full Name</th>
+					<th>Email</th>
+					<th>Phone Numbers</th>
+				</thead>
+				<tbody>
+					{{range $r := .Contacts}}
+						<tr>
+							<td>{{$r.FullName}}</td>
+							<td>{{$r.Email}}</td>
+							<td>
+								{{range $index, $r := .PhoneNumbers}}
+									{{if ne $index 0}},{{end}}
+									{{$r.Number}}
+								{{end}}
+							</td>
+						</tr>
+					{{end}}
+				</tbody>
+			</table>
+			<h2>Submit Contact</h2>
+			<form
+				method="POST"
+				action="/postContact"
+			>
+				<div class="FieldHolder">
+					<label for="FullName">Full Name</label>
+					<input type="text" id="FullName" name="FullName" />
+				</div>
+				<div class="FieldHolder">
+					<label for="Email">Email</label>
+					<input type="email" name="Email" />
+				</div>
+				<div class="FieldHolder">
+					<label for="PhoneNumbers">
+						Phone Numbers</br>
+						(seperate each phone number by a newline)
+					</label>
+					<textarea name="PhoneNumbers"></textarea>
+				</div>
+				<button 
+					type="submit"
+					name="postContact"
+				>
+					Submit
+				</button>
+			</form>
+		</div>
+	</body>
+</html>

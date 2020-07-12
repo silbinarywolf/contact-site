@@ -1,0 +1,11 @@
+version: "2"
+
+services:
+  db:
+    # Expose the ports externally so we can access this database via our host machine
+    # We don't want to do this for production as only our internal app accesses the database.
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password

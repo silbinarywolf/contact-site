@@ -1,0 +1,83 @@
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	font-size: 16px;
+	padding: 0;
+	margin: 0;
+	background-color: #fff;
+	font-family: -apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+}
+
+body {
+	color: #fff;
+	background-color: #222;
+}
+
+.Container {
+	width: 1280px;
+	max-width: 100%;
+	margin: 0 auto;
+	padding: 0 1.5rem;
+	padding-top: 0.5rem;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+td,
+th {
+	text-align: left;
+	border: 1px solid white;
+	padding: 8px;
+}
+
+th {
+	padding: 8px;
+}
+
+h1,
+h2 {
+	margin: 1rem 0;
+}
+
+button,
+label,
+input {
+	font-size: inherit;
+}
+
+button {
+	background: #fff;
+	border: 1px solid black;
+	border-radius: 4px;
+	padding: 0.5rem 1rem;
+}
+
+label {
+	display: block;
+	margin-bottom: 0.5rem;
+}
+
+input[type="text"],
+input[type="email"],
+textarea {
+	width: 100%;
+	background: #fff;
+	border: 1px solid #fff;
+	border-radius: 4px;
+	padding: 0.25rem 0.5rem;
+}
+
+textarea {
+	min-height: 80px;
+}
+
+.FieldHolder {
+	max-width: 320px;
+	margin-bottom: 0.5rem;
+}

@@ -1,0 +1,16 @@
+# Ignore everything in root (to ignore binary for Linux / Mac)
+*
+# Unignore directories
+!/**/
+# Unignore files with extensions
+!*.*
+# Unignore Dockerfile
+!Dockerfile
+# Ignore Docker Compose production YML
+/docker-compose.prod.yml
+# Ignore Windows build
+/*.exe
+# Ignore config
+/config.json
+# Ignore code coverage files
+*.out

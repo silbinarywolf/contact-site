@@ -1,0 +1,16 @@
+version: "2"
+
+services:
+  app:
+    build: .
+    # Restart the application if it crashes
+    restart: on-failure
+    ports:
+       - "8080:8080"
+    command: /app/server
+  db:
+    image: postgres
+    restart: always
+    expose:
+      # Publishes the port to other containers but NOT to host machine
+      - "5432"
