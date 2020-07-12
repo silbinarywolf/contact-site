@@ -67,15 +67,22 @@ go build
 
 For iteration purposes, this application includes a flag that drops all the tables for you. This allows you to clear your database so you can iterate and make changes to the setup logic within the codebase.
 
+1) One method is to use the applications destroy flag, this will drop the tables it created.
 ```
 ./contact-site --destroy
 ```
 
+2) Another method is to just destroy the Docker containers completely. If you've changed the POSTGRES_USER/POSTGRES_PASSWORD fields, you may want to do this. 
+```
+docker-compose stop &&
+docker-compose rm
+```
+
 ## Run Tests
 
-These are instructions for running various tests in the project
+These are instructions for running various tests in the project. 
 
-* Run all tests
+* Run all tests (requires that PostgresSQL is running)
 ```
 go test ./...
 ```
@@ -85,14 +92,16 @@ go test ./...
 go test ./internal/...
 ```
 
-* Run integration tests
+* Run integration tests (requires that PostgresSQL is running)
 ```
 go test ./test
 ```
 
 ## Run Tests With Code Coverage
 
-* Generate code coverage
+The following commands run tests and also give information relating to code coverage. When I last observed
+
+* Generate code coverage for integration tests
 ```
 go test ./test -cover -coverpkg=./... -coverprofile=coverage.out
 ```

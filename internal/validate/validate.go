@@ -23,10 +23,9 @@ func NewError(message string) *ValidationError {
 	}
 }
 
-// Validate email address
+// emailRegex is used to validate email addresses.
 //
-// Obviously not as complex as validating against the actual email address spec. but *probably* good enough for this.
-//
+// Not as complex as validating against the actual email address spec. but *probably* good enough.
 // Sourced from: https://golangnews.org/2020/06/validating-an-email-address/
 var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 

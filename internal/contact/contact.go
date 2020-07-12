@@ -49,6 +49,8 @@ func InsertNew(record *Contact) (rErr error) {
 		if record.ID != 0 {
 			return errContactAlreadyExists
 		}
+		// I could probably make this FullName validation a bit better by only
+		// allowing a limited subset of UTF-8 characters such as disallowing emojis.
 		if len(record.FullName) >= 255 {
 			return ErrInvalidFullName
 		}
@@ -209,6 +211,7 @@ func MustInitialize() {
 	}
 
 	// This isn't the nicest way to insert dummy data but it's good enough for now.
+	// Ideally, we'd just check if these specific records were already in there and if not, insert them.
 	if !didTablesAlreadyExist {
 		// Fill with data
 		records := []*Contact{
@@ -246,6 +249,10 @@ func MustInitialize() {
 func MustDestroy() {
 	db := db.Get()
 
+	// The TABLE constraint on PhoneNumber means we need to DROP it first or else
+	// there will be an SQL error. Generally when I need to DROP all tables, I run some
+	// SQL to remove any constraints on them so I can drop them out-of-order and not have
+	// to think too hard about it.
 	dropTables := []string{
 		`DROP TABLE PhoneNumber`,
 		`DROP TABLE Contact`,

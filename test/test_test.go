@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 	app.MustInitialize()
 	defer app.MustClose()
 
-	// Set hostname
+	// Set hostname we hit with get/post requests in our tests below
 	HostName = "http://127.0.0.1:" + strconv.Itoa(config.Get().Web.Port)
 
 	// Start application without blocking (so we can run tests)
@@ -59,19 +59,16 @@ func TestGetHomePage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("readAll error: %s", err)
 	}
-	t.Logf("%s", dat)
+	// This was here for debug purposes when using the -v verbose flag
+	// t.Logf("%s", dat)
 }
 
 func TestPostFormSuccess(t *testing.T) {
-	type TestData struct {
-		In  url.Values
-		Out bool
-	}
-
 	// Opted to just post data directly to the web server. Seemed like the most
 	// robust way to test whether the server is running correctly or not.
 	// Slow? Probably. But if it turns out to not be a good idea, we can always change it
 	// later.
+	// This isn't exactly a great test case but proves the validation is working as expected/etc.
 	resp, err := http.PostForm(
 		HostName+"/postContact",
 		url.Values{
@@ -93,9 +90,39 @@ func TestPostFormSuccess(t *testing.T) {
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
-		// success
+		// expected result, success!
 	case http.StatusBadRequest:
-		t.Errorf("%s", dat)
+		t.Errorf("unexpected response: %s", dat)
+	default:
+		t.Fatalf("unhandled error: %s", err)
+	}
+}
+
+func TestPostFormFailure(t *testing.T) {
+	resp, err := http.PostForm(
+		HostName+"/postContact",
+		url.Values{
+			"FullName":     {"Test"},
+			"Email":        {"BAD_EMAIL_TO_FAIL_VALIDATION"},
+			"PhoneNumbers": {"043"},
+		},
+	)
+	if err != nil {
+		t.Fatalf(
+			"post error: path \"%s/\": %s",
+			"postContact",
+			err,
+		)
+	}
+	dat, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("readAll error: %s", err)
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+		t.Errorf("unexpected response: %s", dat)
+	case http.StatusBadRequest:
+		// expected result, success!
 	default:
 		t.Fatalf("unhandled error: %s", err)
 	}

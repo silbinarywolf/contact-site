@@ -16,17 +16,12 @@ import (
 	"github.com/silbinarywolf/contact-site/internal/validate"
 )
 
-// templates are parsed once at boot-up so they only need to be parsed once and to
-// catch any parsing problems as soon as possible.
-//
-// We store the files in ".templates" with a prefixed "." so that if we decide to serve
-// our "static" files via Apache/Nginx, we can make the rules for public/privately exposed
-// folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
-var templates *template.Template
-
 var (
 	flagInit    bool
 	flagDestroy bool
+
+	// templates holds all our /.templates files
+	templates *template.Template
 
 	isInitialized bool
 	isClosed      bool
@@ -37,11 +32,10 @@ func init() {
 	flag.BoolVar(&flagDestroy, "destroy", false, "if destroy flag is used, the database will be destroyed.")
 }
 
-type TemplateData struct {
-	Contacts []contact.Contact
-}
-
 func handleHomePage(w http.ResponseWriter, r *http.Request) {
+	type TemplateData struct {
+		Contacts []contact.Contact
+	}
 	var templateData TemplateData
 	templateData.Contacts = contact.GetAll()
 	if err := templates.ExecuteTemplate(w, "index.html", templateData); err != nil {
@@ -104,6 +98,13 @@ func MustInitialize() {
 	}
 
 	// Initialize templates
+	//
+	// Templates are parsed once at boot-up so they only need to be parsed once and to
+	// catch any parsing problems as soon as possible.
+	//
+	// We store the files in ".templates" with a prefixed "." so that if we decide to serve
+	// our "static" files via Apache/Nginx, we can make the rules for public/privately exposed
+	// folders simple. (ie. all dot-prefixed folders are denied/blocked from public)
 	templates = template.Must(template.ParseFiles(
 		".templates/index.html",
 		".templates/postContact.html",
@@ -171,13 +172,14 @@ func MustClose() {
 }
 
 // mustDestroy will drop all the tables in the current database.
+//
 // In a real production situation, I'd probably make this hidden behind tag like "dev" or "debug"
 // as it only exists for developer convenience.
 func mustDestroy() {
 	contact.MustDestroy()
 }
 
-// mustSetup will execute if the "flagInit" global variable is true
+// mustSetup will create tables and mock data for records.
 func mustSetup() {
 	contact.MustInitialize()
 }
