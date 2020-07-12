@@ -93,6 +93,14 @@ func InsertNew(record *Contact) (rErr error) {
 	}
 
 	// Insert record into DB
+	//
+	// We use an SQL transaction here so that if any errors occur during record creation, we don't
+	// end up with a Contact being partially created.
+	// (ie. if a PhoneNumber fails to insert for unknown reasons)
+	//
+	// This transaction logic came in a bit later, the initial code didnt use them.
+	// In hindsight, I wish I explored using them when creating tables / setting up the mock data
+	// in the setup step. I want to redo it but I really just need to ship this.
 	tx, err := db.Get().Begin()
 	if err != nil {
 		return err
@@ -102,6 +110,9 @@ func InsertNew(record *Contact) (rErr error) {
 		if hasCommitted {
 			return
 		}
+		// I haven't tested what happens in this case and I'm honestly not sure
+		// how robust this Rollback() call is.
+		// Will force this case to occur at a later date and see if I'm using this correctly
 		if err := tx.Rollback(); err != nil {
 			rErr = err
 		}
@@ -172,6 +183,7 @@ func MustInitialize() {
 	db := db.Get()
 
 	// Create tables
+	didTablesAlreadyExist := false
 	createTables := []string{
 		`CREATE TABLE Contact(
 			ID        SERIAL PRIMARY KEY NOT NULL,
@@ -187,39 +199,46 @@ func MustInitialize() {
 	}
 	for _, createTableQuery := range createTables {
 		if _, err := db.Query(createTableQuery); err != nil {
-			panic(err)
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P07" {
+				// do nothing if "duplicate_table" error, we've already created this table
+				didTablesAlreadyExist = true
+			} else {
+				panic(err)
+			}
 		}
 	}
 
-	// Fill with data
-	records := []*Contact{
-		{
-			FullName: "Alex Bell",
-			PhoneNumbers: []PhoneNumber{
-				{Number: "03 8578 6688"},
-				{Number: "1800728069"},
+	// This isn't the nicest way to insert dummy data but it's good enough for now.
+	if !didTablesAlreadyExist {
+		// Fill with data
+		records := []*Contact{
+			{
+				FullName: "Alex Bell",
+				PhoneNumbers: []PhoneNumber{
+					{Number: "03 8578 6688"},
+					{Number: "1800728069"},
+				},
 			},
-		},
-		{
-			FullName: "Fredrik Idestam",
-			PhoneNumbers: []PhoneNumber{
-				{Number: "+6139888998"},
+			{
+				FullName: "Fredrik Idestam",
+				PhoneNumbers: []PhoneNumber{
+					{Number: "+6139888998"},
+				},
 			},
-		},
-		{
-			FullName: "Radia Perlman",
-			Email:    "rperl001@mit.edu",
-			PhoneNumbers: []PhoneNumber{
-				{Number: "(03) 9333 7119"},
-				{Number: "0488445688"},
-				{Number: "+61488224568"},
+			{
+				FullName: "Radia Perlman",
+				Email:    "rperl001@mit.edu",
+				PhoneNumbers: []PhoneNumber{
+					{Number: "(03) 9333 7119"},
+					{Number: "0488445688"},
+					{Number: "+61488224568"},
+				},
 			},
-		},
-	}
-
-	for i, record := range records {
-		if err := InsertNew(record); err != nil {
-			panic(fmt.Sprintf("Failed to insert record %d: %s", i, err))
+		}
+		for i, record := range records {
+			if err := InsertNew(record); err != nil {
+				panic(fmt.Sprintf("Failed to insert record %d: %s", i, err))
+			}
 		}
 	}
 }

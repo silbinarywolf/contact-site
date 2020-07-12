@@ -7,10 +7,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/silbinarywolf/contact-site/internal/app"
 	"github.com/silbinarywolf/contact-site/internal/config"
+)
+
+var (
+	HostName string
 )
 
 // TestMain will execute before all tests and allows us to do setup/teardown
@@ -35,6 +40,9 @@ func TestMain(m *testing.M) {
 	app.MustInitialize()
 	defer app.MustClose()
 
+	// Set hostname
+	HostName = "http://127.0.0.1:" + strconv.Itoa(config.Get().Web.Port)
+
 	// Start application without blocking (so we can run tests)
 	go app.MustStart()
 
@@ -43,7 +51,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetHomePage(t *testing.T) {
-	resp, err := http.Get("http://127.0.0.1:8080/")
+	resp, err := http.Get(HostName)
 	if err != nil {
 		t.Fatalf("post error: path \"/\": %s", err)
 	}
@@ -61,9 +69,11 @@ func TestPostFormSuccess(t *testing.T) {
 	}
 
 	// Opted to just post data directly to the web server. Seemed like the most
-	// effective way to test whether the server is running correctly or not.
+	// robust way to test whether the server is running correctly or not.
+	// Slow? Probably. But if it turns out to not be a good idea, we can always change it
+	// later.
 	resp, err := http.PostForm(
-		"http://127.0.0.1:8080/postContact",
+		HostName+"/postContact",
 		url.Values{
 			"FullName":     {"Test"},
 			"Email":        {"test@test.com"},

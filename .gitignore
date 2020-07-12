@@ -6,6 +6,8 @@
 !*.*
 # Unignore Dockerfile
 !Dockerfile
+# Ignore Docker Compose production YML
+/docker-compose.prod.yml
 # Ignore Windows build
 /*.exe
 # Ignore config

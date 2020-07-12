@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -14,8 +15,6 @@ import (
 	"github.com/silbinarywolf/contact-site/internal/db"
 	"github.com/silbinarywolf/contact-site/internal/validate"
 )
-
-const port = ":8080"
 
 // templates are parsed once at boot-up so they only need to be parsed once and to
 // catch any parsing problems as soon as possible.
@@ -95,8 +94,10 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 }
 
 // MustInitialize will init various modules such as templates, configs and database connections.
-// This logic was seperated from MustStart so that the initialization code could be guaranteed to have
-// completed successfully
+//
+// This logic was seperated from MustStart so that the initialization code could be blocking in our test code.
+// The benefit of doing it this way is that it lowers the chance that the server may not have had enough time to start-up
+// before our test code tries to make requests against our application.
 func MustInitialize() {
 	if isInitialized {
 		panic("Cannot call MustInitialize more than once.")
@@ -120,6 +121,19 @@ func MustInitialize() {
 		Password: config.Database.Password,
 	})
 
+	// Flags and initialization
+	if flagDestroy {
+		// --destroy flag will delete all tables
+		mustDestroy()
+		os.Exit(0)
+	}
+	if flagInit {
+		// --init flag will only setup the tables/dummy data
+		mustSetup()
+		os.Exit(0)
+	}
+	mustSetup()
+
 	// Setup routes
 	http.HandleFunc("/", handleHomePage)
 	http.HandleFunc("/postContact", handlePostContact)
@@ -139,15 +153,7 @@ func MustStart() {
 	if !isInitialized {
 		panic("Must call Initialize before calling Start")
 	}
-	if flagDestroy {
-		mustDestroy()
-		os.Exit(0)
-	}
-	if flagInit {
-		mustSetup()
-		os.Exit(0)
-	}
-
+	port := ":" + strconv.Itoa(config.Get().Web.Port)
 	log.Printf("Starting server on " + port + "...")
 	err := http.ListenAndServe(port, nil)
 	if err != nil {
