@@ -13,14 +13,12 @@ If you're using Windows, I recommend Git Bash. Don't try to use the Windows Comm
 - [config.example.json](/config.example.json)
 - [docker-compose.prod.example.yml](/docker-compose.prod.example.yml)
 
-Remove the ".example" part from each file and configure them for production use, such as changing the database user and password to be stronger.
+Remove the ".example" part from each file and configure them for production use.
 
-2) Build Go binary for Linux, this binary file will be packaged into the Docker container.
-```
-GOOS=linux go build -o server
-```
+**Recommendations**
+- Change the database user and password in both `config.json` and `docker-compose.prod.yml` to not be admin/password.
 
-3) The following command-line statements will:
+2) The following command-line statements will:
 - Build Go binary for Linux. (this binary file will be packaged into the Docker container, as defined in Dockerfile)
 - Force build of all images. Mostly used to rebuild the "app" image.
 - Stop the containers if they're running
@@ -34,7 +32,12 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d &&
 docker-compose logs -f
 ```
 
-4) You can use the following command to get the IP address of the Docker machine and visit it in the browser
+If you've done things correctly, your logs should end in a line like this:
+```
+app_1 | 2020/07/12 07:24:58 Starting server on :8080...
+```
+
+3) You can use the following command to get the IP address of the Docker machine and visit it in the browser
 ```
 docker-machine ip
 ```

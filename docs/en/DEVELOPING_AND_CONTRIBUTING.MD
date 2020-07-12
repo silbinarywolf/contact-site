@@ -59,12 +59,7 @@ Whatever IP address you get back from that command, put it into your config.json
 go build
 ```
 
-5) Run your application in initialize mode (creates tables and sets up test data)
-```
-./contact-site --init
-```
-
-6) Run your application
+5) Run your application
 ```
 ./contact-site
 ```
