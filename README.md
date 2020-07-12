@@ -2,8 +2,7 @@
 
 A website that lists contact information from various users and allows the submission of additional contacts.
 
-![A screenshot of the home webpage that exists in this project](docs/en/images/home-page.png)
-*A screenshot of the website*
+![A screenshot of the home webpage for this application](docs/en/images/home-page.png)
 
 # Requirements
 
