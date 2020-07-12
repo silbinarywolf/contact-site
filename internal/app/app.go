@@ -49,14 +49,16 @@ func handlePostContact(w http.ResponseWriter, r *http.Request) {
 
 	fullName := r.FormValue("FullName")
 	email := r.FormValue("Email")
-	phoneNumbersDat := r.FormValue("PhoneNumbers")
-	phoneNumbersDat = strings.TrimSpace(phoneNumbersDat)
-	if len(phoneNumbersDat) >= 4096 {
-		// Arbitrarily limited the max amount of data to 4096.
-		http.Error(w, "Invalid Phone Numbers given, too many phone numbers given.", http.StatusBadRequest)
-		return
+	phoneNumbersDat := strings.TrimSpace(r.FormValue("PhoneNumbers"))
+	var phoneNumbers []string
+	if len(phoneNumbersDat) > 0 {
+		if len(phoneNumbersDat) >= 4096 {
+			// Arbitrarily limited the max amount of data to 4096.
+			http.Error(w, "Invalid Phone Numbers given, too many phone numbers given.", http.StatusBadRequest)
+			return
+		}
+		phoneNumbers = strings.Split(phoneNumbersDat, "\n")
 	}
-	phoneNumbers := strings.Split(phoneNumbersDat, "\n")
 
 	// Create record from request
 	record := &contact.Contact{}

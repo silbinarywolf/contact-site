@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	// Client-facing errors
-	ErrInvalidFullName    = validate.NewError("Invalid Full Name provided. Name provided is too long.")
-	ErrInvalidEmail       = validate.NewError("Invalid Email provided")
-	ErrInvalidPhoneNumber = validate.NewError("Invalid Phone Number provided")
+	// User-facing errors
+	ErrInvalidFullName     = validate.NewError("Invalid Full Name provided. Name provided is too long.")
+	ErrInvalidEmail        = validate.NewError("Invalid Email provided")
+	ErrMissingPhoneNumbers = validate.NewError("No Phone Number(s) provided. Must provide at least 1 phone number.")
+	ErrInvalidPhoneNumber  = validate.NewError("Invalid Phone Number provided")
 
 	// Internal (developer) errors
 	errContactAlreadyExists     = errors.New("cannot insert Contact record that already exists")
@@ -60,6 +61,9 @@ func InsertNew(record *Contact) (rErr error) {
 		if len(record.Email) != 0 &&
 			!validate.IsValidEmail(record.Email) {
 			return ErrInvalidEmail
+		}
+		if len(record.PhoneNumbers) == 0 {
+			return ErrMissingPhoneNumbers
 		}
 		for i, _ := range record.PhoneNumbers {
 			childRecord := &record.PhoneNumbers[i]
